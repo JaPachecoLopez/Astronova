@@ -12,7 +12,6 @@
 
 static WebServer webServer(80);
 static Config *webServerConfig = nullptr;
-static const char *CONFIG_FILENAME = "/config.json";
 
 static String escapeJsonString(const String &value)
 {
@@ -214,7 +213,7 @@ static void handleComandos()
                 bool clearFileExisted = false;
                 bool clearMountOk = true;
 
-                clearExecuted = borrarConfigJson(CONFIG_FILENAME, clearFileExisted, clearMountOk);
+                clearExecuted = borrarConfigJson(APP_CONFIG_FILENAME, clearFileExisted, clearMountOk);
                 if (!clearMountOk)
                 {
                     ordenesMalProcesadas++;
@@ -246,7 +245,7 @@ static void handleComandos()
         {
             if (VerificaBoleano(argValue))
             {
-                bool saveOk = saveConfigToFile(CONFIG_FILENAME, *webServerConfig);
+                bool saveOk = saveConfigToFile(APP_CONFIG_FILENAME, *webServerConfig);
                 if (saveOk)
                 {
                     ordenesProcesadasCorrectamente++;

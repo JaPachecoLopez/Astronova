@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "funciones.h"
-#include "config.h"
+#include "appconfig.h"
 #include "wificfg.h"
 #include "wifihttp.h"
 #include "wifiserver.h"
@@ -9,11 +9,10 @@
 // Para subir repositorio desde terminal: (git add .)    (git commit -m "mensaje")   (git push)
 
 static Config config;
-static const char *CONFIG_FILENAME = "/config.json";
 
 void setup()
 {
-  iniciaApp(config, CONFIG_FILENAME);
+  iniciaApp(config, APP_CONFIG_FILENAME);
   bleBegin(config);
   webServerBegin(config);
   mqttBegin(config);

@@ -277,16 +277,31 @@ bool SendOnLine()
     MayToMin(mqttConfig->macSTA, macSTA, sizeof(macSTA));
     obtenerFechaHoraEsp32Iso8601(timestamp, sizeof(timestamp));
 
-    snprintf(topic, sizeof(topic), "%snotification/online/system", mqttConfig->mqttTopic);
-    snprintf(payload, sizeof(payload),
-             "{\"header\":{\"timestamp\":\"%s\",\"uid\":69},\"data\":{\"session_id\":\"%s\",\"cortex\":{\"fw_version\":\"%s\"},\"fw_version\":\"%s\",\"device_mac\":\"%s\"}}",
-             timestamp,
-             mqttMac10,
-             mqttVer0Cortex,
-             mqttVer0Esp32,
-             macSTA);
-    Serial.printf("[MQTT] SendOnLine topic(%d): %s\n", strlen(topic), topic);
-    Serial.printf("[MQTT] SendOnLine payload(%d): %s\n", strlen(payload), payload);
+    int topicLen = snprintf(topic, sizeof(topic), "%snotification/online/system", mqttConfig->mqttTopic);
+    int payloadLen = snprintf(payload, sizeof(payload),
+                              "{\"header\":{\"timestamp\":\"%s\",\"uid\":69},\"data\":{\"session_id\":\"%s\",\"cortex\":{\"fw_version\":\"%s\"},\"fw_version\":\"%s\",\"device_mac\":\"%s\",\"appv\":\"%d\",\"ip\":\"%s\"}}",
+                              timestamp,
+                              mqttMac10,
+                              mqttVer0Cortex,
+                              mqttVer0Esp32,
+                              macSTA,
+                              mqttConfig->AppVersion,
+                              mqttConfig->wifiIp);
+
+    if (topicLen < 0 || topicLen >= static_cast<int>(sizeof(topic)))
+    {
+        Serial.println("[MQTT] SendOnLine error: topic truncado");
+        return false;
+    }
+
+    if (payloadLen < 0 || payloadLen >= static_cast<int>(sizeof(payload)))
+    {
+        Serial.println("[MQTT] SendOnLine error: payload truncado");
+        return false;
+    }
+
+    Serial.printf("[MQTT] SendOnLine topic(%u): %s\n", static_cast<unsigned>(topicLen), topic);
+    Serial.printf("[MQTT] SendOnLine payload(%u): %s\n", static_cast<unsigned>(payloadLen), payload);
 
     bool published = mqttPublish(topic, payload);
     if (!published)
