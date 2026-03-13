@@ -6,7 +6,7 @@
 #include "wifiserver.h"
 #include "mqttclient.h"
 #include "blecfg.h"
-// Para subir repositorio desde terminal: git add .    git commit -m "mensaje" git push origin master
+// Para subir repositorio desde terminal: (git add .)    (git commit -m "mensaje")   (git push)
 
 static Config config;
 static const char *CONFIG_FILENAME = "/config.json";
