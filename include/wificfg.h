@@ -1,7 +1,7 @@
 #ifndef WIFICFG_H
 #define WIFICFG_H
 
-#include "config.h"
+#include "appconfig.h"
 
 // Controla el LED de estado (on/off logico, respeta polaridad activa alta/baja).
 void setStatusLed(bool on);

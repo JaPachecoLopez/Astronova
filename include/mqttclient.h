@@ -1,7 +1,7 @@
 #ifndef MQTTCLIENT_H
 #define MQTTCLIENT_H
 
-#include "config.h"
+#include "appconfig.h"
 
 // Inicializa y conecta el cliente MQTT usando los datos de Config.
 // Debe llamarse despues de conectar WiFi STA.

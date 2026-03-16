@@ -1,7 +1,7 @@
 #ifndef CONFIG_JSON_H
 #define CONFIG_JSON_H
 
-#include "config.h"
+#include "appconfig.h"
 
 // Tamaño máximo del documento JSON
 #define MAX_JSON_SIZE 1024

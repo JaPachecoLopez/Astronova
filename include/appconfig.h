@@ -1,5 +1,5 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef APPCONFIG_H
+#define APPCONFIG_H
 
 #include <WiFi.h>
 
@@ -39,5 +39,9 @@ struct Config
     char mqttVer0Esp32[20];
     char mqttVer1Esp32[20];
 };
+
+extern const char *const APP_CONFIG_FILENAME;
+
+void initDefaultConfig(Config &config);
 
 #endif
