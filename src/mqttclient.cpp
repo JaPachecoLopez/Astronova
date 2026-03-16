@@ -22,6 +22,17 @@ static int lastHttpDownloadProgressPercent = -10;
 static unsigned long idTransNum = 1000 + (esp_random() % 2001); // Valor inicial aleatorio idTrans dispositivos.
 static String lastCalendarDataJson;
 
+enum class repPet : uint8_t
+{
+    CortexUpdate12 = 0,
+    CortexUpdateStart = 1,
+    CortexUpdateComplete = 2,
+    Sincro12 = 3,
+    SincroOk = 4,
+    Fecha12 = 5,
+    FechaOk = 6
+};
+
 static unsigned long nextIdTrans()
 {
     return ++idTransNum;
@@ -40,7 +51,7 @@ static void waitMillisecondsNonBlocking(unsigned long waitMs)
     }
 }
 
-static bool sendResponseByType(int responseType, int32_t idTrans = 0, const String &dataJson = "")
+static bool sendResponseByType(repPet responseType, int32_t idTrans = 0, const String &dataJson = "")
 {
     const char *responseTopic = nullptr;
     char fullTopic[160];
@@ -56,36 +67,36 @@ static bool sendResponseByType(int responseType, int32_t idTrans = 0, const Stri
     }
 
     obtenerFechaHoraEsp32Iso8601(responseTimestamp, sizeof(responseTimestamp));
-    Serial.printf("[MQTT] Enviando: %d\n", responseType);
+    Serial.printf("[MQTT] Enviando: %d\n", static_cast<int>(responseType));
     switch (responseType)
     {
-    case 0: // cortex_fw_update 12
+    case repPet::CortexUpdate12: // cortex_fw_update 12
         responseTopic = "response/start/cortex_fw_update";
         responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
                                       "{\"idTrans\":%lu,\"header\":{\"timestamp\":\"%s\",\"status\":12,\"uid\":77}}", nextIdTrans(), responseTimestamp);
         break;
-    case 1: // notification/started/cortex_fw_update
+    case repPet::CortexUpdateStart: // notification/started/cortex_fw_update
         // {"header":{"timestamp":"1970-01-01T00:00:14Z","uid":77},"data":{"event":"started","message":"Download started"}}
         responseTopic = "notification/started/cortex_fw_update";
         responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
                                       "{\"header\":{\"timestamp\":\"%s\",\"uid\":77},\"data\":{\"event\":\"started\",\"message\":\"Download started\"}}",
                                       responseTimestamp);
         break;
-    case 2: // notification/started/cortex_fw_update
-        // {"header":{"timestamp":"1970-01-01T00:00:14Z","uid":77},"data":{"event":"started","message":"Download started"}}
+    case repPet::CortexUpdateComplete: // notification/started/cortex_fw_update
+        // {"header":{"timestamp":"1970-01-01T00:00:14Z","uid":77},"data":{"event":"started","message":"Download completed"}}
         responseTopic = "notification/update_done/cortex_fw_update";
         responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
                                       "{\"header\":{\"timestamp\":\"%s\",\"uid\":77},\"data\":{\"event\":\"completed\",\"message\":\"Download completed successfully\"}}",
                                       responseTimestamp);
         break;
 
-    case 3:
+    case repPet::Sincro12:
         //{"idTrans":9232764,"header":{"timestamp":"2026-03-16T08:26:04Z","status":12,"uid":70}}
         responseTopic = "response/request_sync/anc_device";
         responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
                                       "{\"idTrans\":%lu,\"header\":{\"timestamp\":\"%s\",\"status\":12,\"uid\":70}}", idTrans, responseTimestamp);
         break;
-    case 4:
+    case repPet::SincroOk:
         //{"header":{"timestamp":"2026-03-16T08:26:07Z","uid":70},"data":{"language":0,"country":0,"city":0,"contrast":4,"permanent":0,"pwdEnDis":0,"zoneEnabled":0,"mode1224":0}}
         responseTopic = "notification/cfg/device";
         responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
@@ -93,16 +104,18 @@ static bool sendResponseByType(int responseType, int32_t idTrans = 0, const Stri
                                       responseTimestamp);
         break;
 
-    case 5:                                      // Fecha
+    case repPet::Fecha12:                        // Fecha
         responseTopic = "response/cfg/calendar"; //  {"idTrans":9232765,"header":{"timestamp":"2026-03-16T08:26:17Z","status":12,"uid":75}}
         responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
                                       "{\"idTrans\":%lu,\"header\":{\"timestamp\":\"%s\",\"status\":12,\"uid\":75}}", idTrans, responseTimestamp);
         break;
-    case 6: // Fecha
-        responseTopic = "notification/status/calendar";
-
+    case repPet::FechaOk:                               // Estado de calendario
+        responseTopic = "notification/status/calendar"; // {"header":{"timestamp":"2026-03-16T08:26:17Z","uid":75},"data":{"calendar":[9,25,56,64,16,3,26]}}
+        responsePayloadLen = snprintf(responsePayload, sizeof(responsePayload),
+                                      "{\"header\":{\"timestamp\":\"%s\",\"uid\":75},\"data\":%s}", responseTimestamp, dataJson.c_str());
+        break;
     default:
-        Serial.printf("[MQTT] sendResponseByType tipo no soportado: %d\n", responseType);
+        Serial.printf("[MQTT] sendResponseByType tipo no soportado: %d\n", static_cast<int>(responseType));
         return false;
     }
     if (responsePayloadLen < 0 || responsePayloadLen >= static_cast<int>(sizeof(responsePayload)))
@@ -303,7 +316,12 @@ static void fechaSet(const String &payloadJson)
     Serial.print("[MQTT] fechaSet data=");
     Serial.println(lastCalendarDataJson);
 
-    if (!sendResponseByType(5, idTrans, lastCalendarDataJson)) // response/request_sync/anc_device
+    if (!sendResponseByType(repPet::Fecha12, idTrans, lastCalendarDataJson)) // response/cfg/calendar
+    {
+        return;
+    }
+    waitMillisecondsNonBlocking(2000);
+    if (!sendResponseByType(repPet::FechaOk, idTrans, lastCalendarDataJson)) // notification/status/calendar
     {
         return;
     }
@@ -327,12 +345,12 @@ static void cortexSincro(const String &payloadJson)
     }
     Serial.print("[MQTT] cortexSincro idTrans=");
     Serial.println(idTrans);
-    if (!sendResponseByType(3, idTrans)) // response/request_sync/anc_device
+    if (!sendResponseByType(repPet::Sincro12, idTrans)) // response/request_sync/anc_device
     {
         return;
     }
     waitMillisecondsNonBlocking(2050);
-    if (!sendResponseByType(4, idTrans)) // notification/cfg/device
+    if (!sendResponseByType(repPet::SincroOk, idTrans)) // notification/cfg/device
     {
         return;
     }
@@ -380,13 +398,13 @@ static void cortexUpdate(const String &payloadJson)
         return;
     }
 
-    if (!sendResponseByType(0)) // response/start/cortex_fw_update
+    if (!sendResponseByType(repPet::CortexUpdate12)) // response/start/cortex_fw_update
     {
         return;
     }
     waitMillisecondsNonBlocking(2050);
 
-    if (!sendResponseByType(1)) // notification/started/cortex_fw_update
+    if (!sendResponseByType(repPet::CortexUpdateStart)) // notification/started/cortex_fw_update
     {
         return;
     }
@@ -409,7 +427,7 @@ static void cortexUpdate(const String &payloadJson)
             {
                 Serial.println("[MQTT] cortexUpdate descarga completa y verificada");
                 waitMillisecondsNonBlocking(1000);
-                if (!sendResponseByType(2)) // notification/update_done/cortex_fw_update
+                if (!sendResponseByType(repPet::CortexUpdateComplete)) // notification/update_done/cortex_fw_update
                 {
                     return;
                 }
